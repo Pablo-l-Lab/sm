@@ -12,24 +12,10 @@ public class OrderTrackingFile implements Iterable<OrderTracking> {
 
 	public Collection<OrderTracking> getOrderTrackings() {
 		return this.orderTrackings;
-
 	}
 
 	public void setOrderTracking(Collection<OrderTracking> orderTrackings) {
 		this.orderTrackings = orderTrackings;
-	}
-
-	public OrderTracking getOrderByID(Long id) {
-		int i = 0;
-		OrderTracking searchedOrder = null;
-		OrderTracking order = null;
-		while (i < this.orderTrackings.size() && searchedOrder == null) {
-			order = (OrderTracking) orderTrackings.toArray()[i];
-			if (order.getOrderId() == id) {
-				searchedOrder = order;
-			}
-		}
-		return searchedOrder;
 	}
 
 	@Override
