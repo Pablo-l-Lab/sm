@@ -1,95 +1,84 @@
 package com.imatia.statemachine.services;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
 import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import com.imatia.statemachine.dao.OrderTrackingDao;
-import com.imatia.statemachine.dao.OrderTrackingDaoImpl;
 import com.imatia.statemachine.model.OrderTracking;
-import com.imatia.statemachine.model.OrderTrackingFile;
 import com.imatia.statemachine.model.OrderTrackingStatus;
+import com.imatia.statemachine.repository.OrderTrackingRepository;
 
 @Service
 public class OrderTrackingService {
-	private int initStatus = OrderTrackingStatus.RECOGIDO_EN_ALMACÉN.ordinal();
-	private int finalStatus = OrderTrackingStatus.ENTREGADO.ordinal();
 
 	@Autowired
-	public static OrderTrackingDao<OrderTracking> orderTrackingDao = new OrderTrackingDaoImpl();
+	private OrderTrackingRepository orderTrackingRepo;
+	private int initialStatus = OrderTrackingStatus.RECOGIDO_EN_ALMACÉN.ordinal();
+	private int finalStatus = OrderTrackingStatus.values().length;
 
 	public OrderTrackingService() {
 	}
 
-	public List<String> processOrders(Collection<OrderTracking> orders) {
-		List<String> returnList = new ArrayList<String>();
-		final String SAVED = "SAVED";
-		final String NOT_SAVED = "NOT_SAVED";
+	public List<String> processOrders(Iterable<OrderTracking> request) {
+		final String SAVED = "Saved Order: ";
+		final String INVALID_DATA = "Not saved. Invalid Status on Order: ";
+		final String INVALID_TRANSITION = "Not saved. Invalid Transition on Order: ";
+		List<String> response = new ArrayList<String>();
 
-		for (OrderTracking thisOrder : orders) {
+		for (OrderTracking thisOrder : request) {
+			long thisOrderId = thisOrder.getOrderId();
 
-			if (isValidOrder(thisOrder)) {
-				OrderTracking existingOrder = this.searchExistingOrder(thisOrder);
-
+			if (isValidEvent(thisOrder)) {
+				OrderTracking existingOrder = searchExistingOrder(thisOrderId);
 				if (existingOrder == null) {
-					this.saveOrder(thisOrder);
-					returnList.add(SAVED);
-					System.out.println("SAVED ORDER: \n\n" + thisOrder + "\n\n");
+					saveOrder(thisOrder);
+					response.add(SAVED + thisOrderId);
 
 				} else if (existingOrder != null) {
-					System.out.println("VALIDATING EXISTING ORDER: " + thisOrder.getOrderId()
-							+ " --------------------------------------------------------------------------------\n\n");
 
-					if (this.isValidTransition(thisOrder, existingOrder)) {
+					if (isValidTransition(thisOrder, existingOrder)) {
 						saveOrder(thisOrder);
-						returnList.add(SAVED);
-						System.out.println(
-								"\t\tVALIDATION COMPLETED! => Updated order: " + thisOrder.getOrderId() + "\n\n\n\n");
+						response.add(SAVED + thisOrderId);
 
 					} else {
-						returnList.add(NOT_SAVED);
-						System.out.println("\t\tVALIDATION COMPLETED -X- Incorrect new state, cannot save order: "
-								+ thisOrder.getOrderId() + "\n\n\t\t\t Can't make transition from status: "
-								+ OrderTrackingStatus.valueOf(existingOrder.getTrackingStatusId())
-								+ ", to status: "
-								+ OrderTrackingStatus.valueOf(thisOrder.getTrackingStatusId()) + "\n\n");
+						response.add(INVALID_TRANSITION + thisOrderId);
 					}
 				}
 			} else {
-				returnList.add(NOT_SAVED);
-				System.out.println("\t\t UNABLE TO SAVE ORDER: " + thisOrder.getOrderId() + ", WITH TRACKING STATUS: "
-						+ OrderTrackingStatus.valueOf(thisOrder.getTrackingStatusId()) + " - PLEASE INTRODUCE A VALID STATE AND RETRY \n\n");
+				response.add(INVALID_DATA + thisOrderId);
 			}
-
 		}
-		return returnList;
+		return response;
 
 	}
 
-	private boolean isValidOrder(OrderTracking thisOrder) {
+	private boolean isValidEvent(OrderTracking thisOrder) {
 		return (thisOrder.getOrderId() != null) && (thisOrder.getChangeStatusDate() != null)
-				&& isValidStatusID(thisOrder.getTrackingStatusId());
+				&& isValidStatus(thisOrder.getTrackingStatusId());
 	}
 
-	private boolean isValidStatusID(int statusID) {
+	private boolean isValidStatus(int statusID) {
 		return OrderTrackingStatus.valueOf(statusID) != OrderTrackingStatus.ESTADO_INCORRECTO;
 	}
 
-	public OrderTracking searchExistingOrder(OrderTracking existingOrder) {
-		return orderTrackingDao.getOrderByID(existingOrder.getOrderId());
+	public OrderTracking searchExistingOrder(Long orderId) {
+		return orderTrackingRepo.findFirst1ByOrderIdOrderByOrderTrackingIdDesc(orderId);
 	}
 
 	private boolean isValidTransition(OrderTracking thisOrder, OrderTracking existingOrder) {
-		return (thisOrder.getTrackingStatusId() > initStatus) && (existingOrder.getTrackingStatusId() < finalStatus);
+		return (thisOrder.getTrackingStatusId() > initialStatus)
+				&& (existingOrder.getTrackingStatusId() < (finalStatus - 1));
 	}
 
-	private void saveOrder(OrderTracking order) {
-		order.setOrderTrackingStatus();
-		orderTrackingDao.save(order);
+	public void saveOrder(OrderTracking thisOrder) {
+		thisOrder.setOrderTrackingStatus();
+		try {
+			OrderTracking savedOrder = orderTrackingRepo.save(thisOrder);
+			System.out.println("\nSAVED ORDER: \n\n" + savedOrder + "\n\n");
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+
 	}
 
 }

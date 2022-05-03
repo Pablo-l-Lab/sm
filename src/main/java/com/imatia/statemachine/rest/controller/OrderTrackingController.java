@@ -8,17 +8,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.imatia.statemachine.dao.OrderTrackingDao;
 import com.imatia.statemachine.model.OrderTracking;
 import com.imatia.statemachine.model.OrderTrackingFile;
+import com.imatia.statemachine.repository.OrderTrackingRepository;
 import com.imatia.statemachine.services.OrderTrackingService;
 
 @RestController
 public class OrderTrackingController {
 	
-	OrderTrackingService orderService = new OrderTrackingService();
 	@Autowired
-	public static OrderTrackingDao<OrderTracking> orderTrackingDao;
+	OrderTrackingService orderService;
 
 	@PostMapping(value = "/order/tracking", 
 			consumes = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
